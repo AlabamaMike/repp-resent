@@ -1,0 +1,95 @@
+{
+  "projectName": "Commercial Research: Stripe Inc",
+  "targetCompany": {
+    "name": "Stripe",
+    "website": "https://stripe.com",
+    "industry": "Financial Technology / Payments",
+    "headquarters": "San Francisco, CA",
+    "aliases": ["Stripe Inc", "Stripe Payments"]
+  },
+  "client": {
+    "name": "Investment Committee",
+    "contactEmail": "research@example.com"
+  },
+  "researchObjective": "Conduct comprehensive commercial due diligence on Stripe to evaluate the company as a potential investment opportunity, assessing financial health, competitive position, and growth prospects.",
+  "keyQuestions": [
+    {
+      "id": "q-1",
+      "question": "What is Stripe's current financial health and growth trajectory?",
+      "priority": "critical",
+      "category": "financial",
+      "subQuestions": [
+        "What is Stripe's estimated annual revenue and growth rate?",
+        "Has Stripe achieved profitability or what is their path to profitability?",
+        "What is Stripe's most recent valuation and how has it changed?",
+        "What is the company's funding history and investor base?"
+      ]
+    },
+    {
+      "id": "q-2",
+      "question": "Who are Stripe's main competitors and what is their competitive position?",
+      "priority": "critical",
+      "category": "competitive",
+      "subQuestions": [
+        "How does Stripe compare to PayPal, Square, Adyen, and other payment processors?",
+        "What is Stripe's estimated market share in the payments industry?",
+        "What are Stripe's key competitive advantages and disadvantages?"
+      ]
+    },
+    {
+      "id": "q-3",
+      "question": "What is the background and track record of Stripe's leadership team?",
+      "priority": "high",
+      "category": "leadership",
+      "subQuestions": [
+        "What is the background of founders Patrick and John Collison?",
+        "Who are the key executives and what is their track record?",
+        "Have there been any significant leadership changes recently?"
+      ]
+    },
+    {
+      "id": "q-4",
+      "question": "What is Stripe's product strategy and technology moat?",
+      "priority": "high",
+      "category": "technology",
+      "subQuestions": [
+        "What are Stripe's core products and services?",
+        "What recent product launches or innovations has Stripe made?",
+        "How does Stripe's technology stack compare to competitors?"
+      ]
+    },
+    {
+      "id": "q-5",
+      "question": "What are the key risks and challenges facing Stripe?",
+      "priority": "high",
+      "category": "legal",
+      "subQuestions": [
+        "Are there any regulatory or compliance concerns?",
+        "What legal issues or lawsuits has Stripe faced?",
+        "How might macroeconomic conditions impact Stripe's business?"
+      ]
+    },
+    {
+      "id": "q-6",
+      "question": "What is Stripe's market opportunity and expansion strategy?",
+      "priority": "medium",
+      "category": "market",
+      "subQuestions": [
+        "What is the total addressable market for payment processing?",
+        "What geographic markets is Stripe targeting for expansion?",
+        "What adjacent markets might Stripe enter?"
+      ]
+    }
+  ],
+  "additionalContext": "This research is for an investment committee evaluating potential opportunities in the fintech sector. Focus on publicly available information from credible sources. Flag any significant data gaps or areas of uncertainty.",
+  "dataSources": {
+    "webSearch": true,
+    "newsArticles": true,
+    "financialReports": true,
+    "socialMedia": false,
+    "patents": false,
+    "courtRecords": true
+  },
+  "outputFormat": "detailed_report",
+  "deadline": "2024-12-31"
+}
