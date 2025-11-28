@@ -1,0 +1,170 @@
+# Cloud Build configuration for deploying to Cloud Run
+# This deploys both the API and Dashboard services
+
+substitutions:
+  _REGION: us-central1
+  _API_SERVICE_NAME: research-api
+  _DASHBOARD_SERVICE_NAME: research-dashboard
+
+steps:
+  # =============================================================================
+  # Build API Service
+  # =============================================================================
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-api'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/${_API_SERVICE_NAME}:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/${_API_SERVICE_NAME}:latest'
+      - '-f'
+      - 'Dockerfile'
+      - '.'
+
+  # =============================================================================
+  # Build Dashboard Service
+  # =============================================================================
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-dashboard'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/${_DASHBOARD_SERVICE_NAME}:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/${_DASHBOARD_SERVICE_NAME}:latest'
+      - '-f'
+      - 'dashboard/Dockerfile'
+      - '--build-arg'
+      - 'API_URL=https://${_API_SERVICE_NAME}-$PROJECT_NUMBER.${_REGION}.run.app'
+      - 'dashboard'
+
+  # =============================================================================
+  # Push Images to Container Registry
+  # =============================================================================
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-api'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/${_API_SERVICE_NAME}:$COMMIT_SHA'
+    waitFor:
+      - 'build-api'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-api-latest'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/${_API_SERVICE_NAME}:latest'
+    waitFor:
+      - 'build-api'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-dashboard'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/${_DASHBOARD_SERVICE_NAME}:$COMMIT_SHA'
+    waitFor:
+      - 'build-dashboard'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-dashboard-latest'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/${_DASHBOARD_SERVICE_NAME}:latest'
+    waitFor:
+      - 'build-dashboard'
+
+  # =============================================================================
+  # Deploy API Service to Cloud Run
+  # =============================================================================
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-api'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - '${_API_SERVICE_NAME}'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/${_API_SERVICE_NAME}:$COMMIT_SHA'
+      - '--region'
+      - '${_REGION}'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '1Gi'
+      - '--cpu'
+      - '1'
+      - '--min-instances'
+      - '0'
+      - '--max-instances'
+      - '10'
+      - '--timeout'
+      - '300'
+      - '--set-env-vars'
+      - 'NODE_ENV=production,API_PORT=8080,API_HOST=0.0.0.0'
+    waitFor:
+      - 'push-api'
+
+  # =============================================================================
+  # Get API URL and Deploy Dashboard Service
+  # =============================================================================
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-dashboard'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Get the API service URL
+        API_URL=$(gcloud run services describe ${_API_SERVICE_NAME} --region=${_REGION} --format='value(status.url)')
+        echo "API URL: $${API_URL}"
+
+        # Deploy dashboard with API URL
+        gcloud run deploy ${_DASHBOARD_SERVICE_NAME} \
+          --image gcr.io/$PROJECT_ID/${_DASHBOARD_SERVICE_NAME}:$COMMIT_SHA \
+          --region ${_REGION} \
+          --platform managed \
+          --allow-unauthenticated \
+          --memory 512Mi \
+          --cpu 1 \
+          --min-instances 0 \
+          --max-instances 10 \
+          --set-env-vars "NODE_ENV=production,API_URL=$${API_URL}"
+    waitFor:
+      - 'push-dashboard'
+      - 'deploy-api'
+
+  # =============================================================================
+  # Update API with Dashboard URL for CORS
+  # =============================================================================
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'update-api-cors'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Get the Dashboard service URL
+        DASHBOARD_URL=$(gcloud run services describe ${_DASHBOARD_SERVICE_NAME} --region=${_REGION} --format='value(status.url)')
+        echo "Dashboard URL: $${DASHBOARD_URL}"
+
+        # Update API service with CORS configuration
+        gcloud run services update ${_API_SERVICE_NAME} \
+          --region ${_REGION} \
+          --update-env-vars "DASHBOARD_URL=$${DASHBOARD_URL}"
+    waitFor:
+      - 'deploy-dashboard'
+
+# Images to store in Container Registry
+images:
+  - 'gcr.io/$PROJECT_ID/${_API_SERVICE_NAME}:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/${_API_SERVICE_NAME}:latest'
+  - 'gcr.io/$PROJECT_ID/${_DASHBOARD_SERVICE_NAME}:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/${_DASHBOARD_SERVICE_NAME}:latest'
+
+# Build options
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'
+
+# Timeout for the entire build (30 minutes)
+timeout: '1800s'
