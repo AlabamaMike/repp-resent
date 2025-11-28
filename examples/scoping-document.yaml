@@ -1,0 +1,76 @@
+projectName: "Commercial Research: OpenAI"
+
+targetCompany:
+  name: OpenAI
+  website: https://openai.com
+  industry: Artificial Intelligence
+  headquarters: San Francisco, CA
+  aliases:
+    - OpenAI Inc
+    - OpenAI LP
+
+client:
+  name: Strategic Planning Team
+  contactEmail: strategy@example.com
+
+researchObjective: >
+  Assess OpenAI's strategic position in the AI industry, analyzing their
+  competitive moat, financial trajectory, partnership ecosystem, and
+  potential risks to inform strategic planning discussions.
+
+keyQuestions:
+  - id: q-1
+    question: What is OpenAI's financial position and business model?
+    priority: critical
+    category: financial
+    subQuestions:
+      - What is OpenAI's estimated annual revenue?
+      - What are the primary revenue streams (API, ChatGPT Plus, Enterprise)?
+      - What is the company's funding history and current valuation?
+      - What is OpenAI's path to profitability?
+
+  - id: q-2
+    question: How does OpenAI's technology compare to competitors?
+    priority: critical
+    category: competitive
+    subQuestions:
+      - How do GPT-4/Claude/Gemini compare in capabilities?
+      - What is OpenAI's competitive advantage in AI research?
+      - Who are the main competitors (Anthropic, Google, Meta)?
+
+  - id: q-3
+    question: What is OpenAI's partnership and customer ecosystem?
+    priority: high
+    category: market
+    subQuestions:
+      - What is the nature of the Microsoft partnership?
+      - What major enterprises are using OpenAI's technology?
+      - What distribution channels does OpenAI have?
+
+  - id: q-4
+    question: What leadership and governance changes have occurred?
+    priority: high
+    category: leadership
+    subQuestions:
+      - What happened during the November 2023 board crisis?
+      - Who are the current board members and executives?
+      - How has the company structure evolved?
+
+  - id: q-5
+    question: What are the key risks facing OpenAI?
+    priority: high
+    category: legal
+    subQuestions:
+      - What regulatory challenges might OpenAI face?
+      - What lawsuits or legal issues are pending?
+      - How might AI safety concerns impact the company?
+
+dataSources:
+  webSearch: true
+  newsArticles: true
+  financialReports: true
+  socialMedia: false
+  patents: true
+  courtRecords: true
+
+outputFormat: detailed_report
