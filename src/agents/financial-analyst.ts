@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { BaseAgent, AgentContext, AgentResult } from './base-agent.js';
+import { BaseAgent, AgentContext, AgentResult, GCPCredentials } from './base-agent.js';
 import type { AgentDBClient } from '../memory/agentdb-client.js';
 import type { ResearchFinding, Source } from '../types/index.js';
 
@@ -14,11 +14,12 @@ import type { ResearchFinding, Source } from '../types/index.js';
  * - Risk assessment from financial perspective
  */
 export class FinancialAnalystAgent extends BaseAgent {
-  constructor(memory: AgentDBClient) {
+  constructor(memory: AgentDBClient, gcpCredentials?: GCPCredentials) {
     super(
       {
         name: 'Financial Analyst',
         type: 'financial_analyst',
+        gcpCredentials,
         systemPrompt: `You are an expert financial analyst specializing in commercial due diligence and company financial assessment.
 
 Your role is to analyze financial information about companies to assess their financial health, growth trajectory, and market position.

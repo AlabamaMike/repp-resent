@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { BaseAgent, AgentContext, AgentResult } from './base-agent.js';
+import { BaseAgent, AgentContext, AgentResult, GCPCredentials } from './base-agent.js';
 import type { AgentDBClient } from '../memory/agentdb-client.js';
 import type { ResearchFinding, Source } from '../types/index.js';
 
@@ -14,11 +14,12 @@ import type { ResearchFinding, Source } from '../types/index.js';
  * - Strategic moves and patterns
  */
 export class CompetitiveIntelligenceAgent extends BaseAgent {
-  constructor(memory: AgentDBClient) {
+  constructor(memory: AgentDBClient, gcpCredentials?: GCPCredentials) {
     super(
       {
         name: 'Competitive Intelligence Analyst',
         type: 'competitive_intelligence',
+        gcpCredentials,
         systemPrompt: `You are an expert competitive intelligence analyst specializing in market dynamics and competitive positioning.
 
 Your role is to analyze the competitive landscape around a target company, identify key competitors, and assess market dynamics.
