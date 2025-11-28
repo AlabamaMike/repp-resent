@@ -368,8 +368,8 @@ app.use((err: ErrorWithStatus, _req: Request, res: Response, _next: NextFunction
 // Server Startup
 // ============================================================================
 
-const PORT = parseInt(process.env.API_PORT || '3001', 10);
-const HOST = process.env.API_HOST || 'localhost';
+const PORT = parseInt(process.env.API_PORT || process.env.PORT || '3001', 10);
+const HOST = process.env.API_HOST || '0.0.0.0';
 
 httpServer.listen(PORT, HOST, () => {
   console.log(`🚀 Research API server running at http://${HOST}:${PORT}`);
