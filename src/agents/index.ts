@@ -1,4 +1,4 @@
-export { BaseAgent, type AgentConfig, type AgentContext, type AgentResult } from './base-agent.js';
+export { BaseAgent, type AgentConfig, type AgentContext, type AgentResult, type GCPCredentials } from './base-agent.js';
 export { WebResearcherAgent } from './web-researcher.js';
 export { FinancialAnalystAgent } from './financial-analyst.js';
 export { CompetitiveIntelligenceAgent } from './competitive-intelligence.js';

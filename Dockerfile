@@ -56,6 +56,11 @@ ENV API_PORT=8080
 ENV API_HOST=0.0.0.0
 ENV AGENTDB_PATH=/app/data/research.db
 
+# GCP/Vertex AI configuration (set via Cloud Run environment variables)
+# These are placeholders - actual values should be set in Cloud Run service config
+ENV GCP_REGION=us-central1
+# GCP_PROJECT_ID should be set via Cloud Run env vars or service account
+
 # Expose port (Cloud Run uses 8080 by default)
 EXPOSE 8080
 

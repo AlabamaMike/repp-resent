@@ -8,6 +8,7 @@ import 'dotenv/config';
 import { getOrchestrator, ResearchOrchestrator } from '../agents/orchestrator.js';
 import { scopingParser } from '../workflow/scoping-parser.js';
 import { getAgentDB } from '../memory/agentdb-client.js';
+import { createGCPAuthMiddleware, getGCPAuth, type AuthenticatedRequest } from '../auth/index.js';
 import type { ScopingDocument, WebSocketEvent, CreateProjectRequest } from '../types/index.js';
 
 const app = express();
@@ -23,23 +24,44 @@ const io = new SocketIOServer(httpServer, {
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// Initialize orchestrator
-let orchestrator: ResearchOrchestrator;
+// GCP Authentication middleware
+// Users must provide their GCP credentials via Bearer token
+app.use(createGCPAuthMiddleware({
+  projectId: process.env.GCP_PROJECT_ID,
+  region: process.env.GCP_REGION || 'us-central1',
+  allowUnauthenticatedPaths: ['/api/health', '/api/templates'],
+}));
 
-function getOrchestratorInstance(): ResearchOrchestrator {
-  if (!orchestrator) {
-    orchestrator = getOrchestrator({
+// Orchestrator instances per GCP project (user credentials)
+const orchestrators = new Map<string, ResearchOrchestrator>();
+
+function getOrchestratorInstance(gcpProjectId: string, accessToken: string): ResearchOrchestrator {
+  // Create unique key based on GCP project ID
+  const key = gcpProjectId;
+
+  if (!orchestrators.has(key)) {
+    const orchestrator = getOrchestrator({
       maxConcurrentAgents: parseInt(process.env.MAX_CONCURRENT_AGENTS || '5', 10),
       maxResearchDepth: parseInt(process.env.MAX_RESEARCH_DEPTH || '3', 10),
       dbPath: process.env.AGENTDB_PATH || './data/research.db',
+      gcpProjectId,
+      gcpRegion: process.env.GCP_REGION || 'us-central1',
+      gcpAccessToken: accessToken,
     });
 
     // Forward orchestrator events to WebSocket clients
     orchestrator.on('event', (event: WebSocketEvent) => {
       io.to(`project:${event.projectId}`).emit('project:event', event);
     });
+
+    orchestrators.set(key, orchestrator);
+  } else {
+    // Update access token for existing orchestrator
+    const orchestrator = orchestrators.get(key)!;
+    orchestrator.updateCredentials(accessToken);
   }
-  return orchestrator;
+
+  return orchestrators.get(key)!;
 }
 
 // ============================================================================
@@ -62,6 +84,12 @@ app.get('/api/health', (_req: Request, res: Response) => {
  */
 app.post('/api/projects', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const gcpAuth = getGCPAuth(req);
+    if (!gcpAuth) {
+      res.status(401).json({ error: 'GCP authentication required' });
+      return;
+    }
+
     const body = req.body as CreateProjectRequest | { rawDocument: string; format?: string };
 
     let scopingDocument: ScopingDocument;
@@ -93,8 +121,8 @@ app.post('/api/projects', async (req: Request, res: Response, next: NextFunction
       return;
     }
 
-    // Start the research project
-    const orch = getOrchestratorInstance();
+    // Start the research project using the user's GCP credentials
+    const orch = getOrchestratorInstance(gcpAuth.projectId, gcpAuth.accessToken);
     const project = await orch.startProject(scopingDocument);
 
     res.status(201).json({
@@ -118,6 +146,12 @@ app.post('/api/projects', async (req: Request, res: Response, next: NextFunction
  */
 app.post('/api/projects/quick', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const gcpAuth = getGCPAuth(req);
+    if (!gcpAuth) {
+      res.status(401).json({ error: 'GCP authentication required' });
+      return;
+    }
+
     const { targetCompany, questions, clientName, objective } = req.body as {
       targetCompany: string;
       questions: string[];
@@ -140,7 +174,7 @@ app.post('/api/projects/quick', async (req: Request, res: Response, next: NextFu
       objective,
     });
 
-    const orch = getOrchestratorInstance();
+    const orch = getOrchestratorInstance(gcpAuth.projectId, gcpAuth.accessToken);
     const project = await orch.startProject(scopingDocument);
 
     res.status(201).json({
@@ -162,8 +196,14 @@ app.post('/api/projects/quick', async (req: Request, res: Response, next: NextFu
 /**
  * Get all projects
  */
-app.get('/api/projects', (_req: Request, res: Response) => {
-  const orch = getOrchestratorInstance();
+app.get('/api/projects', (req: Request, res: Response) => {
+  const gcpAuth = getGCPAuth(req);
+  if (!gcpAuth) {
+    res.status(401).json({ error: 'GCP authentication required' });
+    return;
+  }
+
+  const orch = getOrchestratorInstance(gcpAuth.projectId, gcpAuth.accessToken);
   const projects = orch.getAllProjects();
 
   res.json({
@@ -185,8 +225,14 @@ app.get('/api/projects', (_req: Request, res: Response) => {
  * Get project by ID
  */
 app.get('/api/projects/:projectId', (req: Request, res: Response) => {
+  const gcpAuth = getGCPAuth(req);
+  if (!gcpAuth) {
+    res.status(401).json({ error: 'GCP authentication required' });
+    return;
+  }
+
   const { projectId } = req.params;
-  const orch = getOrchestratorInstance();
+  const orch = getOrchestratorInstance(gcpAuth.projectId, gcpAuth.accessToken);
   const project = orch.getProject(projectId);
 
   if (!project) {
@@ -265,8 +311,14 @@ app.get('/api/projects/:projectId/sources', (req: Request, res: Response) => {
  * Get project report
  */
 app.get('/api/projects/:projectId/report', (req: Request, res: Response) => {
+  const gcpAuth = getGCPAuth(req);
+  if (!gcpAuth) {
+    res.status(401).json({ error: 'GCP authentication required' });
+    return;
+  }
+
   const { projectId } = req.params;
-  const orch = getOrchestratorInstance();
+  const orch = getOrchestratorInstance(gcpAuth.projectId, gcpAuth.accessToken);
   const project = orch.getProject(projectId);
 
   if (!project) {
@@ -296,8 +348,14 @@ app.get('/api/projects/:projectId/report', (req: Request, res: Response) => {
  */
 app.post('/api/projects/:projectId/pause', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const gcpAuth = getGCPAuth(req);
+    if (!gcpAuth) {
+      res.status(401).json({ error: 'GCP authentication required' });
+      return;
+    }
+
     const { projectId } = req.params;
-    const orch = getOrchestratorInstance();
+    const orch = getOrchestratorInstance(gcpAuth.projectId, gcpAuth.accessToken);
 
     await orch.pauseProject(projectId);
 
@@ -380,9 +438,12 @@ httpServer.listen(PORT, HOST, () => {
 // Graceful shutdown
 process.on('SIGINT', () => {
   console.log('\nShutting down gracefully...');
-  if (orchestrator) {
-    orchestrator.close();
+  // Close all orchestrator instances
+  for (const [key, orch] of orchestrators) {
+    console.log(`Closing orchestrator for project: ${key}`);
+    orch.close();
   }
+  orchestrators.clear();
   httpServer.close(() => {
     console.log('Server closed');
     process.exit(0);

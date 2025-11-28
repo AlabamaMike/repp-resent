@@ -1,7 +1,17 @@
 import Anthropic from '@anthropic-ai/sdk';
+import AnthropicVertex from '@anthropic-ai/vertex-sdk';
 import { v4 as uuidv4 } from 'uuid';
 import type { AgentDBClient } from '../memory/agentdb-client.js';
 import type { AgentType, ResearchFinding, Source, MemoryEntry } from '../types/index.js';
+
+/**
+ * GCP credentials for Vertex AI authentication
+ */
+export interface GCPCredentials {
+  projectId: string;
+  region: string;
+  accessToken: string;
+}
 
 export interface AgentConfig {
   name: string;
@@ -10,6 +20,7 @@ export interface AgentConfig {
   model?: string;
   maxTokens?: number;
   temperature?: number;
+  gcpCredentials?: GCPCredentials;
 }
 
 export interface AgentContext {
@@ -40,7 +51,7 @@ interface Message {
  * Base class for all research agents
  *
  * Provides common functionality:
- * - Claude API integration with Opus 4.5
+ * - Claude API integration via Vertex AI with user's GCP credentials
  * - Memory storage via AgentDB
  * - Structured output parsing
  * - Error handling and retries
@@ -48,17 +59,45 @@ interface Message {
 export abstract class BaseAgent {
   protected id: string;
   protected config: AgentConfig;
-  protected client: Anthropic;
+  protected client: Anthropic | AnthropicVertex;
   protected memory: AgentDBClient;
   protected conversationHistory: Message[] = [];
+  protected gcpCredentials?: GCPCredentials;
 
   constructor(config: AgentConfig, memory: AgentDBClient) {
     this.id = uuidv4();
     this.config = config;
     this.memory = memory;
-    this.client = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
+    this.gcpCredentials = config.gcpCredentials;
+
+    // Use Vertex AI if GCP credentials are provided, otherwise fall back to direct API
+    if (config.gcpCredentials) {
+      this.client = new AnthropicVertex({
+        projectId: config.gcpCredentials.projectId,
+        region: config.gcpCredentials.region,
+        accessToken: config.gcpCredentials.accessToken,
+      });
+    } else {
+      // Fallback for local development without GCP
+      this.client = new Anthropic({
+        apiKey: process.env.ANTHROPIC_API_KEY,
+      });
+    }
+  }
+
+  /**
+   * Update GCP credentials (e.g., when access token is refreshed)
+   */
+  updateCredentials(accessToken: string): void {
+    if (this.gcpCredentials) {
+      this.gcpCredentials.accessToken = accessToken;
+      // Recreate Vertex AI client with new token
+      this.client = new AnthropicVertex({
+        projectId: this.gcpCredentials.projectId,
+        region: this.gcpCredentials.region,
+        accessToken: accessToken,
+      });
+    }
   }
 
   get agentId(): string {

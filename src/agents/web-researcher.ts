@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { BaseAgent, AgentContext, AgentResult } from './base-agent.js';
+import { BaseAgent, AgentContext, AgentResult, GCPCredentials } from './base-agent.js';
 import type { AgentDBClient } from '../memory/agentdb-client.js';
 import type { ResearchFinding, Source } from '../types/index.js';
 
@@ -13,11 +13,12 @@ import type { ResearchFinding, Source } from '../types/index.js';
  * - Social media presence research
  */
 export class WebResearcherAgent extends BaseAgent {
-  constructor(memory: AgentDBClient) {
+  constructor(memory: AgentDBClient, gcpCredentials?: GCPCredentials) {
     super(
       {
         name: 'Web Researcher',
         type: 'web_researcher',
+        gcpCredentials,
         systemPrompt: `You are an expert commercial research analyst specializing in web-based intelligence gathering.
 
 Your role is to conduct thorough web research on companies to answer specific questions. You have access to web search capabilities.

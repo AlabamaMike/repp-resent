@@ -69,13 +69,14 @@ This project implements a multi-agent research system that:
 
 ## Tech Stack
 
-- **Claude Opus 4.5** - Latest Claude model for agent reasoning
+- **Claude Opus 4.5 via Vertex AI** - Claude models accessed through Google Cloud's Vertex AI
 - **AgentDB** - Shared memory database for agent coordination
 - **TypeScript** - Type-safe implementation
 - **Express** - API server with WebSocket support
 - **Next.js** - React-based web dashboard
 - **Socket.IO** - Real-time updates
 - **SQLite** - Persistent storage via better-sqlite3
+- **GCP Authentication** - User credentials for secure Vertex AI access
 
 ## Getting Started
 
@@ -83,7 +84,23 @@ This project implements a multi-agent research system that:
 
 - Node.js 18+
 - npm or yarn
-- Anthropic API key
+- **GCP Project** with Vertex AI API enabled
+- **GCP Credentials** (gcloud CLI installed and authenticated)
+
+### GCP Setup
+
+Before using this application, you need to set up your GCP project:
+
+```bash
+# 1. Enable the Vertex AI API
+gcloud services enable aiplatform.googleapis.com
+
+# 2. Authenticate with GCP (if not already done)
+gcloud auth login
+
+# 3. Set your default project
+gcloud config set project YOUR_PROJECT_ID
+```
 
 ### Installation
 
@@ -101,8 +118,9 @@ cd dashboard && npm install && cd ..
 # Copy environment file
 cp .env.example .env
 
-# Edit .env and add your Anthropic API key
-# ANTHROPIC_API_KEY=your-key-here
+# Edit .env and configure GCP settings:
+# GCP_PROJECT_ID=your-gcp-project-id
+# GCP_REGION=us-central1
 
 # Initialize the database
 mkdir -p data
@@ -194,24 +212,48 @@ The scoping document defines the research project:
 
 ## API Reference
 
+### Authentication
+
+All API endpoints (except `/api/health` and `/api/templates`) require GCP authentication. Include your GCP access token in the Authorization header:
+
+```bash
+# Get your access token
+ACCESS_TOKEN=$(gcloud auth print-access-token)
+
+# Make authenticated requests
+curl -H "Authorization: Bearer $ACCESS_TOKEN" \
+     -H "X-GCP-Project-ID: your-project-id" \
+     http://localhost:3001/api/projects
+```
+
+**Required Headers:**
+- `Authorization: Bearer <access_token>` - Your GCP access token
+- `X-GCP-Project-ID: <project_id>` - Your GCP project ID (optional if `GCP_PROJECT_ID` env var is set)
+
 ### Projects
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/projects` | GET | List all projects |
-| `/api/projects` | POST | Create from scoping document |
-| `/api/projects/quick` | POST | Quick create with questions |
-| `/api/projects/:id` | GET | Get project details |
-| `/api/projects/:id/findings` | GET | Get project findings |
-| `/api/projects/:id/sources` | GET | Get project sources |
-| `/api/projects/:id/report` | GET | Get generated report |
-| `/api/projects/:id/pause` | POST | Pause a running project |
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/api/projects` | GET | List all projects | Yes |
+| `/api/projects` | POST | Create from scoping document | Yes |
+| `/api/projects/quick` | POST | Quick create with questions | Yes |
+| `/api/projects/:id` | GET | Get project details | Yes |
+| `/api/projects/:id/findings` | GET | Get project findings | Yes |
+| `/api/projects/:id/sources` | GET | Get project sources | Yes |
+| `/api/projects/:id/report` | GET | Get generated report | Yes |
+| `/api/projects/:id/pause` | POST | Pause a running project | Yes |
 
 ### Templates
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/templates/scoping` | GET | Get scoping document template |
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/api/templates/scoping` | GET | Get scoping document template | No |
+
+### Health Check
+
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/api/health` | GET | Service health status | No |
 
 ### WebSocket Events
 
@@ -267,10 +309,24 @@ Synthesizes findings into reports:
 
 Environment variables:
 
+### GCP / Vertex AI Settings
+
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ANTHROPIC_API_KEY` | - | Anthropic API key (required) |
+| `GCP_PROJECT_ID` | - | GCP Project ID for Vertex AI (required for production) |
+| `GCP_REGION` | `us-central1` | GCP region for Vertex AI |
+
+### Fallback Settings (Local Development)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ANTHROPIC_API_KEY` | - | Direct Anthropic API key (only used when GCP credentials not provided) |
 | `ANTHROPIC_MODEL` | `claude-opus-4-5-20251101` | Model to use |
+
+### Application Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
 | `AGENTDB_PATH` | `./data/research.db` | Database path |
 | `API_PORT` | `3001` | API server port |
 | `DASHBOARD_PORT` | `3000` | Dashboard port |

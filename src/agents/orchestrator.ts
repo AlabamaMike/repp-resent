@@ -5,7 +5,7 @@ import { WebResearcherAgent } from './web-researcher.js';
 import { FinancialAnalystAgent } from './financial-analyst.js';
 import { CompetitiveIntelligenceAgent } from './competitive-intelligence.js';
 import { ReportGeneratorAgent } from './report-generator.js';
-import type { BaseAgent, AgentContext, AgentResult } from './base-agent.js';
+import type { BaseAgent, AgentContext, AgentResult, GCPCredentials } from './base-agent.js';
 import type {
   ScopingDocument,
   ResearchProject,
@@ -20,6 +20,12 @@ interface OrchestratorConfig {
   maxConcurrentAgents: number;
   maxResearchDepth: number;
   dbPath?: string;
+  /** GCP Project ID for Vertex AI */
+  gcpProjectId?: string;
+  /** GCP Region for Vertex AI (default: us-central1) */
+  gcpRegion?: string;
+  /** GCP Access Token for authentication */
+  gcpAccessToken?: string;
 }
 
 interface TaskDefinition {
@@ -47,6 +53,7 @@ export class ResearchOrchestrator extends EventEmitter {
   private activeProjects: Map<string, ResearchProject>;
   private taskQueue: TaskDefinition[];
   private runningTasks: Set<string>;
+  private gcpCredentials?: GCPCredentials;
 
   constructor(config: Partial<OrchestratorConfig> = {}) {
     super();
@@ -54,7 +61,19 @@ export class ResearchOrchestrator extends EventEmitter {
       maxConcurrentAgents: config.maxConcurrentAgents || 5,
       maxResearchDepth: config.maxResearchDepth || 3,
       dbPath: config.dbPath,
+      gcpProjectId: config.gcpProjectId,
+      gcpRegion: config.gcpRegion || 'us-central1',
+      gcpAccessToken: config.gcpAccessToken,
     };
+
+    // Set up GCP credentials if provided
+    if (this.config.gcpProjectId && this.config.gcpAccessToken) {
+      this.gcpCredentials = {
+        projectId: this.config.gcpProjectId,
+        region: this.config.gcpRegion || 'us-central1',
+        accessToken: this.config.gcpAccessToken,
+      };
+    }
 
     this.memory = getAgentDB(this.config.dbPath);
     this.agents = new Map();
@@ -65,12 +84,25 @@ export class ResearchOrchestrator extends EventEmitter {
     this.initializeAgents();
   }
 
+  /**
+   * Update GCP credentials (e.g., when access token is refreshed)
+   */
+  updateCredentials(accessToken: string): void {
+    if (this.gcpCredentials) {
+      this.gcpCredentials.accessToken = accessToken;
+      // Update all agents with new credentials
+      for (const agent of this.agents.values()) {
+        agent.updateCredentials(accessToken);
+      }
+    }
+  }
+
   private initializeAgents(): void {
-    // Create agent instances
-    this.agents.set('web_researcher', new WebResearcherAgent(this.memory));
-    this.agents.set('financial_analyst', new FinancialAnalystAgent(this.memory));
-    this.agents.set('competitive_intelligence', new CompetitiveIntelligenceAgent(this.memory));
-    this.agents.set('report_generator', new ReportGeneratorAgent(this.memory));
+    // Create agent instances with GCP credentials for Vertex AI
+    this.agents.set('web_researcher', new WebResearcherAgent(this.memory, this.gcpCredentials));
+    this.agents.set('financial_analyst', new FinancialAnalystAgent(this.memory, this.gcpCredentials));
+    this.agents.set('competitive_intelligence', new CompetitiveIntelligenceAgent(this.memory, this.gcpCredentials));
+    this.agents.set('report_generator', new ReportGeneratorAgent(this.memory, this.gcpCredentials));
   }
 
   /**
@@ -587,12 +619,11 @@ export class ResearchOrchestrator extends EventEmitter {
   }
 }
 
-// Export singleton factory
-let orchestratorInstance: ResearchOrchestrator | null = null;
-
+/**
+ * Factory function to create a new orchestrator instance
+ * Each user/GCP project should have its own orchestrator instance
+ * to ensure credential isolation
+ */
 export function getOrchestrator(config?: Partial<OrchestratorConfig>): ResearchOrchestrator {
-  if (!orchestratorInstance) {
-    orchestratorInstance = new ResearchOrchestrator(config);
-  }
-  return orchestratorInstance;
+  return new ResearchOrchestrator(config);
 }

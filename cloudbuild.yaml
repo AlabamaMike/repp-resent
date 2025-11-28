@@ -1,5 +1,18 @@
 # Cloud Build configuration for deploying to Cloud Run
 # This deploys both the API and Dashboard services
+#
+# Prerequisites for Vertex AI:
+# 1. Enable the Vertex AI API in your GCP project:
+#    gcloud services enable aiplatform.googleapis.com
+#
+# 2. Grant the Cloud Run service account access to Vertex AI:
+#    gcloud projects add-iam-policy-binding $PROJECT_ID \
+#      --member="serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com" \
+#      --role="roles/aiplatform.user"
+#
+# 3. Users authenticate by providing their GCP access token in the Authorization header:
+#    Authorization: Bearer $(gcloud auth print-access-token)
+#    X-GCP-Project-ID: your-project-id
 
 substitutions:
   _REGION: us-central1
@@ -102,7 +115,7 @@ steps:
       - '--timeout'
       - '300'
       - '--set-env-vars'
-      - 'NODE_ENV=production,API_PORT=8080,API_HOST=0.0.0.0'
+      - 'NODE_ENV=production,API_PORT=8080,API_HOST=0.0.0.0,GCP_PROJECT_ID=$PROJECT_ID,GCP_REGION=${_REGION}'
     waitFor:
       - 'push-api'
 

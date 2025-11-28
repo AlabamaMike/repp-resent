@@ -1,4 +1,4 @@
-import { BaseAgent, AgentContext, AgentResult } from './base-agent.js';
+import { BaseAgent, AgentContext, AgentResult, GCPCredentials } from './base-agent.js';
 import type { AgentDBClient } from '../memory/agentdb-client.js';
 import type { ResearchFinding, ResearchReport, ReportSection, RiskFactor, Source } from '../types/index.js';
 
@@ -12,11 +12,12 @@ import type { ResearchFinding, ResearchReport, ReportSection, RiskFactor, Source
  * - Identifying key insights and recommendations
  */
 export class ReportGeneratorAgent extends BaseAgent {
-  constructor(memory: AgentDBClient) {
+  constructor(memory: AgentDBClient, gcpCredentials?: GCPCredentials) {
     super(
       {
         name: 'Report Generator',
         type: 'report_generator',
+        gcpCredentials,
         systemPrompt: `You are an expert research report writer specializing in commercial due diligence and company analysis.
 
 Your role is to synthesize research findings from multiple sources and agents into comprehensive, well-structured reports.
